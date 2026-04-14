@@ -1,12 +1,12 @@
 TOOLPREFIX ?= ./toolchain/bin/aarch64-none-elf-
 CC = $(TOOLPREFIX)gcc
-# TODO: re-enable SIMD (-mno-tree-vectorize -mgeneral-regs-only) after MMU
-CFLAGS += -g -Wall -Werror -ffreestanding -O2 -fno-tree-vectorize -mgeneral-regs-only
+CFLAGS += -g -Wall -Werror -ffreestanding -O2 #-fno-tree-vectorize -mgeneral-regs-only
 
 OBJS=\
 	entry.o \
 	panic.o \
 	init.o \
+	mmu.o \
 	gpio.o \
 	uart.o \
 	i2c.o \

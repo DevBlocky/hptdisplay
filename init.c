@@ -24,6 +24,9 @@ static void rendernum(u32 n, int decimal) {
 void init(void) {
   uart_init();
   printf("\n\nuart initialized\n");
+  mmu_inittables();
+  mmu_initcpu();
+  printf("mmu initialized\n");
   i2c_init();
   printf("i2c initialized\n");
   bme280_init();

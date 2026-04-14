@@ -35,6 +35,10 @@ panic(const char *s) {
     ;
 }
 
+// mmu.c
+void mmu_inittables(void);
+void mmu_initcpu(void);
+
 // gpio.c
 void gpio_setuart(void);
 void gpio_seti2c(void);

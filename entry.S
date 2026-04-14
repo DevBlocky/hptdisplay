@@ -4,9 +4,9 @@
 .globl _start_el2
 _start_el2:
     // sctlr_el1 is uninitialized (unknown) before switching to EL1 so we
-    // must give it a value. right now, only the instruction cache in EL1
-    // will be enabled. later on, the MMU and data cache will be enabled
-    mov x0, #(1 << 12) // I (instruction cache)
+    // must give it a value. right now, all caching + MMU is disabled,
+    // which is modified later in mmu.c
+    mov x0, 0
     msr sctlr_el1, x0
 
     // skip dropping to EL1 if we're already there
