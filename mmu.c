@@ -16,7 +16,7 @@
 static u64 l2_table[TT_ENTRY_COUNT] __attribute__((aligned(4096)));
 
 void mmu_inittables(void) {
-  for (usize i = 0; i < 512; i++)
+  for (usize i = 0; i < TT_ENTRY_COUNT; i++)
     l2_table[i] = 0;
 
   // create normal memory block entries for SDRAM

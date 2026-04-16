@@ -39,6 +39,10 @@ panic(const char *s) {
 void mmu_inittables(void);
 void mmu_initcpu(void);
 
+// timer.c
+u64 timer_current(void);
+void timer_wait(u64 millis);
+
 // gpio.c
 void gpio_setuart(void);
 void gpio_seti2c(void);

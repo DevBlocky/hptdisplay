@@ -45,7 +45,7 @@ void init(void) {
     rendernum(t.degc, 2);
     ssd1306_display();
 
-    wait_cycles(15000000);
+    timer_wait(1000);
 
     // render hPa (mbar)
     ssd1306_clear();
@@ -53,7 +53,7 @@ void init(void) {
     rendernum(t.hpa, 1);
     ssd1306_display();
 
-    wait_cycles(15000000);
+    timer_wait(1000);
 
     // render relative humidity
     ssd1306_clear();
@@ -61,7 +61,7 @@ void init(void) {
     rendernum(t.relh, 3);
     ssd1306_display();
 
-    wait_cycles(15000000);
+    timer_wait(1000);
   }
 
   panic("init return");
