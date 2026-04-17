@@ -7,6 +7,7 @@ OBJS=\
 	panic.o \
 	init.o \
 	mmu.o \
+	alloc.o \
 	timer.o \
 	gpio.o \
 	uart.o \

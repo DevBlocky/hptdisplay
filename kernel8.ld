@@ -11,6 +11,7 @@ PHDRS
 SECTIONS
 {
     . = 0x80000;
+    PROVIDE(__program_start = .);
 
     .text : {
         KEEP(*(.text._start))
@@ -36,4 +37,6 @@ SECTIONS
     } :data
 
    /DISCARD/ : { *(.comment) *(.gnu*) *(.note*) *(.eh_frame*) }
+
+   PROVIDE(__program_end = .);
 }

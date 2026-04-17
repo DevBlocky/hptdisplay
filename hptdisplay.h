@@ -16,7 +16,7 @@ typedef signed long isize;
 typedef float f32;
 typedef double f64;
 
-#define NULL ((void *)0)
+#define NULL ((void *)-1)
 
 // panic.S
 extern int _panicking;
@@ -38,6 +38,11 @@ panic(const char *s) {
 // mmu.c
 void mmu_inittables(void);
 void mmu_initcpu(void);
+
+// alloc.c
+void *alloc_page(void);
+void alloc_freepage(void *page);
+void alloc_init(void);
 
 // timer.c
 u64 timer_current(void);

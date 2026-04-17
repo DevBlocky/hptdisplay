@@ -27,6 +27,8 @@ void init(void) {
   mmu_inittables();
   mmu_initcpu();
   printf("mmu initialized\n");
+  alloc_init();
+  printf("allocator initialized\n");
   i2c_init();
   printf("i2c initialized\n");
   bme280_init();
