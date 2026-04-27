@@ -35,6 +35,16 @@ panic(const char *s) {
     ;
 }
 
+// switch.S
+struct context {
+  usize x19_x29[11]; // callee-saved GPRs
+  usize lr;          // link register (ret addr)
+  usize sp;      // EL1h stack pointer
+  usize sp_el0;      // EL1t stack pointer
+  u64 d8_d15[8];     // callee-saved FP/SIMD
+};
+void _switch(struct context *old, struct context *new);
+
 // mmu.c
 void mmu_inittables(void);
 void mmu_initcpu(void);
@@ -44,9 +54,17 @@ void *alloc_page(void);
 void alloc_freepage(void *page);
 void alloc_init(void);
 
-// timer.c
+// intr.c
 u64 timer_current(void);
-void timer_wait(u64 millis);
+u64 timer_in(u64 millis);
+void timer_setalarm(u64 when);
+void intr_init(void);
+
+// task.c
+void task_create(void (*entry)(void));
+void task_yield(void);
+void task_delay(u64 millis);
+void task_sched(void);
 
 // gpio.c
 void gpio_setuart(void);

@@ -1,14 +1,17 @@
 TOOLPREFIX ?= ./toolchain/bin/aarch64-none-elf-
 CC = $(TOOLPREFIX)gcc
-CFLAGS += -g -Wall -Werror -ffreestanding -O2 #-fno-tree-vectorize -mgeneral-regs-only
+CFLAGS += -g -Wall -ffreestanding -O2
 
 OBJS=\
 	entry.o \
 	panic.o \
+	switch.o \
+	trap.o \
 	init.o \
 	mmu.o \
 	alloc.o \
-	timer.o \
+	intr.o \
+	task.o \
 	gpio.o \
 	uart.o \
 	i2c.o \

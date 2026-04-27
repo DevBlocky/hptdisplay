@@ -1,6 +1,15 @@
 #include "hptdisplay.h"
 #include "rpi3b.h"
 
+static struct bme280_telemetry telemetry;
+
+static void readouttask(void) {
+  for (;;) {
+    telemetry = bme280_readout();
+    task_delay(100);
+  }
+}
+
 static struct bitmap *digits[10] = {&bmp_0, &bmp_1, &bmp_2, &bmp_3, &bmp_4,
                                     &bmp_5, &bmp_6, &bmp_7, &bmp_8, &bmp_9};
 static void rendernum(u32 n, int decimal) {
@@ -20,6 +29,33 @@ static void rendernum(u32 n, int decimal) {
     x += buf[i]->width + 2; // 2px padding
   }
 }
+static void rendertask(void) {
+  for (;;) {
+    // render degrees C
+    ssd1306_clear();
+    ssd1306_render(&bmp_temp, 0, 0);
+    rendernum(telemetry.degc, 2);
+    ssd1306_display();
+
+    task_delay(1000);
+
+    // render hPa (mbar)
+    ssd1306_clear();
+    ssd1306_render(&bmp_press, 0, 0);
+    rendernum(telemetry.hpa, 1);
+    ssd1306_display();
+
+    task_delay(1000);
+
+    // render relative humidity
+    ssd1306_clear();
+    ssd1306_render(&bmp_hum, 0, 0);
+    rendernum(telemetry.relh, 3);
+    ssd1306_display();
+
+    task_delay(1000);
+  }
+}
 
 void init(void) {
   uart_init();
@@ -35,36 +71,13 @@ void init(void) {
   printf("bme280 initialized\n");
   ssd1306_init();
   printf("ssd1306 initialized\n");
+  intr_init();
+  printf("interrupts initialized\n");
 
-  // main program loop
-  for (;;) {
-    // get telemetry from the bme280 sensor
-    struct bme280_telemetry t = bme280_readout();
-
-    // render degrees C
-    ssd1306_clear();
-    ssd1306_render(&bmp_temp, 0, 0);
-    rendernum(t.degc, 2);
-    ssd1306_display();
-
-    timer_wait(1000);
-
-    // render hPa (mbar)
-    ssd1306_clear();
-    ssd1306_render(&bmp_press, 0, 0);
-    rendernum(t.hpa, 1);
-    ssd1306_display();
-
-    timer_wait(1000);
-
-    // render relative humidity
-    ssd1306_clear();
-    ssd1306_render(&bmp_hum, 0, 0);
-    rendernum(t.relh, 3);
-    ssd1306_display();
-
-    timer_wait(1000);
-  }
+  // create tasks and start scheduler
+  task_create(readouttask);
+  task_create(rendertask);
+  task_sched();
 
   panic("init return");
 }

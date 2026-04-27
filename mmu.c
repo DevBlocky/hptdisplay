@@ -31,10 +31,8 @@ void mmu_inittables(void) {
         addr | TT_BLOCK_ENTRY | TT_AF | TT_AP_RW_EL1 | TT_ATTR_DEVICE;
 }
 
-#define MAIR_NORMAL_WB                                                         \
-  (0xFF << 0) // Attr0: 0xFF = normal, inner/outer write-back cacheable
-#define MAIR_DEVICE_nGnRnE                                                     \
-  (0x00 << 8) // Attr1: 0x00 = device-nGnRnE (strongly ordered)
+#define MAIR_NORMAL_WB 0xFF
+#define MAIR_DEVICE_nGnRnE 0x00
 
 #define TCR_T0_30BIT ((64ULL - 30) << 0) // 30-bit (1GB) VA space
 #define TCR_IRGN0_WB (1ULL << 8)         // inner write-back, read-allocate
@@ -50,13 +48,16 @@ void mmu_inittables(void) {
 
 void mmu_initcpu(void) {
   // set MAIR_EL1 (memory attribute register)
-  asm volatile("msr mair_el1, %0" ::"r"(MAIR_NORMAL_WB | MAIR_DEVICE_nGnRnE));
+  // Attr0: 0xFF = normal, inner/outer write-back cacheable
+  // Attr1: 0x00 = device-nGnRnE (strongly ordered)
+  usize mair = (MAIR_DEVICE_nGnRnE << 8) | (MAIR_NORMAL_WB << 0);
+  asm volatile("msr mair_el1, %0" ::"r"(mair));
   // set TCR_EL1 (translation control)
   asm volatile("msr tcr_el1, %0" ::"r"(TCR_T0_30BIT | TCR_IRGN0_WB |
                                        TCR_ORGN0_WB | TCR_SH0_INNER |
                                        TCR_TG0_4KB | TCR_EPD1 | TCR_IPS_36BIT));
   // set TTBR0_EL1 to point to our L2 table
-  asm volatile("msr ttbr0_el1, %0" ::"r"((u64)&l2_table));
+  asm volatile("msr ttbr0_el1, %0" ::"r"((usize)&l2_table));
   asm volatile("isb"); // instruction synchronization barrier
 
   // invalidate all TLB entries
