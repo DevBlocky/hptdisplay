@@ -71,6 +71,8 @@ void init(void) {
   printf("bme280 initialized\n");
   ssd1306_init();
   printf("ssd1306 initialized\n");
+  task_init();
+  printf("tasks initialized\n");
   intr_init();
   printf("interrupts initialized\n");
 

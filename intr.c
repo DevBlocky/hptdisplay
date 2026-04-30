@@ -39,6 +39,13 @@ void timer_setalarm(u64 when) {
 
 static void intr_timer(void) {
   *SYST_R(CS) |= CS_M1; // clear interrupt
+
+  // yield current task to scheduler (if any)
+  asm("msr spsel, #1"); // switch to EL1h (task_yield expects this)
+  asm("msr daifclr, #2"); // enable interrupts
+  task_yield();
+  asm("msr daifset, #2"); // re-disable (nested) interrupts
+  asm("msr spsel, #0"); // switch back to EL1t
 }
 void intr_handle(void) {
   if (*SYST_R(CS) & CS_M1) // system timer 1 interrupt
@@ -47,7 +54,24 @@ void intr_handle(void) {
   // ignore unknown interrupt sources
 }
 
+// int max value to prevent intr_popoff from enable interrupts
+// before intr_init has been run
+static int introff = 0x7FFFFFFF;
+void intr_pushoff(void) {
+  asm("msr daifset, #2"); // mask IRQs
+  isb();
+  introff++;
+}
+void intr_popoff(void) {
+  if (introff <= 0)
+    panic("intr_popoff with introff == 0");
+  introff--;
+  isb();
+  asm("msr daifclr, #2"); // unmask IRQs
+}
+
 void intr_init(void) {
-  asm volatile("msr daifclr, #2");
-  asm volatile("isb");
+  introff = 0;
+  asm("msr daifclr, #2"); // unmask IRQs
+  isb();
 }

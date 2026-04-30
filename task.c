@@ -9,11 +9,16 @@ struct task {
     READY,
   } status;
   struct context ctx;
-  void *stack;
+  void *stackh;
+  void *stackt;
   u64 wakeat;
+  u64 lastat;
 };
 
 #define MAX_TASKS 32
+// SAFETY: interrupts must be disabled when modifying tasks.
+// this is because a timer interrupt could fire while modifying tasks,
+// switching contexts and leaving tasks in an inconsistent state
 static struct task tasks[MAX_TASKS] = {0};
 
 static struct sched {
@@ -21,8 +26,20 @@ static struct sched {
   struct context ctx;
 } schedulers[CPUS] = {0};
 
+static void task_trampoline(void) {
+  // release locks held in context switch
+  intr_popoff();
+
+  // load entry function pointer from context switch (register x19)
+  void (*entry)(void);
+  asm("mov %0, x19" : "=r"(entry));
+
+  entry();
+  // just in case entry() exits
+  task_exit();
+}
 void task_create(void (*entry)(void)) {
-  // NOTE: critical section for tasks
+  intr_pushoff();
 
   // find a FREE task
   struct task *t = NULL;
@@ -34,72 +51,97 @@ void task_create(void (*entry)(void)) {
 
   // add the task by creating context and setting to READY
   t->status = READY;
-  t->stack = alloc_page();
-  t->ctx.lr = (usize)entry;
-  t->ctx.sp = (usize)t->stack + PAGESZ;
+  t->stackh = alloc_page();
+  t->stackt = alloc_page();
+  t->ctx.lr = (usize)task_trampoline;
+  t->ctx.x19_x29[0] = (usize)entry;
+  t->ctx.sp = (usize)t->stackh + PAGESZ;
+  t->ctx.sp_el0 = (usize)t->stackt + PAGESZ;
+
+  intr_popoff();
 }
 
 void task_exit(void) {
   struct sched *s = &schedulers[cpu_id()];
   // free task in tasks list
-  // NOTE: critical section for tasks
+  intr_pushoff();
   s->current->status = FREE;
-  alloc_freepage(s->current->stack);
-  // go back to scheduler (w/o saving context)
-  _switch(NULL, &s->ctx);
+  alloc_freepage(s->current->stackh);
+  alloc_freepage(s->current->stackt);
+  _switch(NULL, &s->ctx); // go back to scheduler
+  // NOTE: this task will never return, so anything past the ctx switch won't
+  // matter
 }
 
 void task_yield(void) {
   struct sched *s = &schedulers[cpu_id()];
+  if (s->current == NULL)
+    return;
   // set task as runnable
-  // NOTE: critical section for tasks
+  intr_pushoff();
   s->current->status = READY;
-  // go back to scheduler
-  _switch(&s->current->ctx, &s->ctx);
+  _switch(&s->current->ctx, &s->ctx); // go back to scheduler
+  intr_popoff();
 }
 
 void task_delay(u64 millis) {
   struct sched *s = &schedulers[cpu_id()];
   // set task as sleeping and clear from scheduler
-  // NOTE: critical section for tasks
+  intr_pushoff();
   s->current->status = SLEEPING;
   s->current->wakeat = timer_in(millis);
   // go back to scheduler
   _switch(&s->current->ctx, &s->ctx);
+  intr_popoff();
 }
 
 void task_sched(void) {
   struct sched *s = &schedulers[cpu_id()];
+
   // scheduler runs forever (in its own context)
+  intr_pushoff();
   for (;;) {
     u64 time = timer_current();
 
     // find a ready task or next wakeat
     struct task *t = NULL;
-    u64 next_wakeat = ~0;
+    u64 min_wakeat = ~0ULL;
+    u64 min_lastat = ~0ULL;
     for (usize i = 0; i < MAX_TASKS; i++) {
+      // wake up sleeping tasks
       if (tasks[i].status == SLEEPING) {
-        // wake up a task if delay has expired
         if (tasks[i].wakeat <= time)
           tasks[i].status = READY;
-        // find minimum wakeat
-        if (tasks[i].wakeat < next_wakeat)
-          next_wakeat = tasks[i].wakeat;
+        else if (tasks[i].wakeat < min_wakeat)
+          min_wakeat = tasks[i].wakeat;
       }
-      if (t == NULL && tasks[i].status == READY)
-        t = &tasks[i]; // set next runnable task
+
+      // find next runnable task
+      if (tasks[i].status == READY && tasks[i].lastat < min_lastat) {
+        min_lastat = tasks[i].lastat;
+        t = &tasks[i];
+      }
     }
 
     if (t != NULL) {
       // run available task
       t->status = RUNNING;
       s->current = t;
+      timer_setalarm(timer_in(50)); // preempt task in 50ms
       _switch(&s->ctx, &t->ctx);
+      s->current->lastat = timer_current();
       s->current = NULL; // returning from switch, so no task
-    } else if (next_wakeat > time && (next_wakeat - time) > 1000) {
+    } else if (min_wakeat > time && (min_wakeat - time) > 1000) {
       // set alarm for next wakeat and sleep the CPU
-      timer_setalarm(next_wakeat - 500);
+      timer_setalarm(min_wakeat - 500);
+      intr_popoff();
       wfi();
+      intr_pushoff();
     }
   }
+}
+
+void task_init(void) {
+  struct sched *s = &schedulers[cpu_id()];
+  s->current = NULL;
 }

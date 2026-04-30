@@ -31,5 +31,6 @@ static inline void wait_cycles(usize cycles) {
     asm volatile("isb");
 }
 static inline void wfi(void) { asm volatile("wfi"); }
+static inline void isb(void) { asm volatile("isb"); }
 
 #endif // __RPI3B_H

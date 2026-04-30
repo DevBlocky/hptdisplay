@@ -39,7 +39,7 @@ panic(const char *s) {
 struct context {
   usize x19_x29[11]; // callee-saved GPRs
   usize lr;          // link register (ret addr)
-  usize sp;      // EL1h stack pointer
+  usize sp;          // EL1h stack pointer
   usize sp_el0;      // EL1t stack pointer
   u64 d8_d15[8];     // callee-saved FP/SIMD
 };
@@ -58,13 +58,17 @@ void alloc_init(void);
 u64 timer_current(void);
 u64 timer_in(u64 millis);
 void timer_setalarm(u64 when);
+void intr_pushoff(void);
+void intr_popoff(void);
 void intr_init(void);
 
 // task.c
 void task_create(void (*entry)(void));
+void task_exit(void);
 void task_yield(void);
 void task_delay(u64 millis);
 void task_sched(void);
+void task_init(void);
 
 // gpio.c
 void gpio_setuart(void);
