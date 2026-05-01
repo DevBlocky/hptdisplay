@@ -1,11 +1,14 @@
 #include "hptdisplay.h"
 #include "rpi3b.h"
 
+static struct sleeplock i2c_lock = SLEEPLOCK();
 static struct bme280_telemetry telemetry;
 
 static void readouttask(void) {
   for (;;) {
+    sleeplock_acquire(&i2c_lock);
     telemetry = bme280_readout();
+    sleeplock_release(&i2c_lock);
     task_delay(100);
   }
 }
@@ -35,7 +38,9 @@ static void rendertask(void) {
     ssd1306_clear();
     ssd1306_render(&bmp_temp, 0, 0);
     rendernum(telemetry.degc, 2);
+    sleeplock_acquire(&i2c_lock);
     ssd1306_display();
+    sleeplock_release(&i2c_lock);
 
     task_delay(1000);
 
@@ -43,7 +48,9 @@ static void rendertask(void) {
     ssd1306_clear();
     ssd1306_render(&bmp_press, 0, 0);
     rendernum(telemetry.hpa, 1);
+    sleeplock_acquire(&i2c_lock);
     ssd1306_display();
+    sleeplock_release(&i2c_lock);
 
     task_delay(1000);
 
@@ -51,7 +58,9 @@ static void rendertask(void) {
     ssd1306_clear();
     ssd1306_render(&bmp_hum, 0, 0);
     rendernum(telemetry.relh, 3);
+    sleeplock_acquire(&i2c_lock);
     ssd1306_display();
+    sleeplock_release(&i2c_lock);
 
     task_delay(1000);
   }

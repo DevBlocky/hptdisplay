@@ -63,12 +63,19 @@ void intr_popoff(void);
 void intr_init(void);
 
 // task.c
+#define SLEEPLOCK() {.locked = 0, .waiter = NULL}
+struct sleeplock {
+  int locked;
+  void *waiter;
+};
 void task_create(void (*entry)(void));
 void task_exit(void);
 void task_yield(void);
 void task_delay(u64 millis);
 void task_sched(void);
 void task_init(void);
+void sleeplock_acquire(struct sleeplock *lk);
+void sleeplock_release(struct sleeplock *lk);
 
 // gpio.c
 void gpio_setuart(void);

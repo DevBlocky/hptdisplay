@@ -5,6 +5,7 @@ struct task {
   enum {
     FREE,
     SLEEPING,
+    BLOCKED,
     RUNNING,
     READY,
   } status;
@@ -13,6 +14,7 @@ struct task {
   void *stackt;
   u64 wakeat;
   u64 lastat;
+  struct task *next_waiter;
 };
 
 #define MAX_TASKS 32
@@ -90,8 +92,7 @@ void task_delay(u64 millis) {
   intr_pushoff();
   s->current->status = SLEEPING;
   s->current->wakeat = timer_in(millis);
-  // go back to scheduler
-  _switch(&s->current->ctx, &s->ctx);
+  _switch(&s->current->ctx, &s->ctx); // go back to scheduler
   intr_popoff();
 }
 
@@ -127,7 +128,7 @@ void task_sched(void) {
       // run available task
       t->status = RUNNING;
       s->current = t;
-      timer_setalarm(timer_in(50)); // preempt task in 50ms
+      timer_setalarm(timer_in(25)); // preempt task in 25ms
       _switch(&s->ctx, &t->ctx);
       s->current->lastat = timer_current();
       s->current = NULL; // returning from switch, so no task
@@ -144,4 +145,32 @@ void task_sched(void) {
 void task_init(void) {
   struct sched *s = &schedulers[cpu_id()];
   s->current = NULL;
+}
+
+void sleeplock_acquire(struct sleeplock *lk) {
+  struct sched *s = &schedulers[cpu_id()];
+  intr_pushoff();
+  while (lk->locked) {
+    s->current->next_waiter = lk->waiter;
+    lk->waiter = s->current;
+    s->current->status = BLOCKED;
+    _switch(&s->current->ctx, &s->ctx); // go back to scheduler
+    // if we're here, then sleeplock_release was called and the
+    // entire waiter linked-list has been cleared
+  }
+  lk->locked = 1;
+  intr_popoff();
+}
+void sleeplock_release(struct sleeplock *lk) {
+  intr_pushoff();
+  lk->locked = 0;
+  struct task **cur = (struct task **)&lk->waiter;
+  // unblock all waiters associated with the lock
+  while (*cur != NULL) {
+    (*cur)->status = READY; // no longer blocked
+    struct task **next = &(*cur)->next_waiter;
+    *cur = NULL;
+    cur = next;
+  }
+  intr_popoff();
 }
